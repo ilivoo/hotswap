@@ -130,7 +130,7 @@ class StringUtils {
         return result;
     }
 
-    public static String[] toStringArray(Collection<String> collection) {
+    private static String[] toStringArray(Collection<String> collection) {
         if (collection == null) {
             return null;
         }

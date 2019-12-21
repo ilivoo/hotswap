@@ -1,6 +1,6 @@
 package com.ilivoo.hotswap;
 
-public class HotSwapInfo {
+class HotSwapInfo {
 
     private static final String PROPERTY_PREFIX = "ilivoo.hotSwap.";
 

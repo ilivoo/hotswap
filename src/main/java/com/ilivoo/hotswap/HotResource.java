@@ -1,7 +1,5 @@
 package com.ilivoo.hotswap;
 
-import org.objectweb.asm.ClassReader;
-
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -31,11 +29,6 @@ public final class HotResource {
     private final String className;
 
     /**
-     * last modify time
-     */
-    private final long lastModifyTime;
-
-    /**
      * class bytes md5, use to compare
      */
     private byte[] md5;
@@ -58,9 +51,8 @@ public final class HotResource {
             throw new IllegalArgumentException(
                     String.format("%s/%s is not exist or not a file !", path, name));
         }
-        this.lastModifyTime = file.lastModified();
-        byte[] classBytes = null;
-        ClassReader classReader = null;
+        byte[] classBytes;
+        ClassReader classReader;
         try {
             classBytes = IOUtils.copyToByteArray(file.toURI().toURL().openStream());
             classReader = new ClassReader(classBytes);
@@ -70,10 +62,7 @@ public final class HotResource {
                     String.format("can not parse %s/%s file !", path, name), ex);
         }
         className = classReader.getClassName().replace('/', '.');
-        md5 = null;
-        if (HotSwapper.instance().isMd5compare()) {
-            md5 = MessageDigest.getInstance("MD5").digest(classBytes);
-        }
+        md5 = MessageDigest.getInstance("MD5").digest(classBytes);
     }
 
     public String getPath() {
@@ -86,10 +75,6 @@ public final class HotResource {
 
     public String getClassName() {
         return className;
-    }
-
-    public long getLastModifyTime() {
-        return lastModifyTime;
     }
 
     public byte[] getMd5() {
@@ -136,8 +121,7 @@ public final class HotResource {
         if (!path.equals(that.path)) return false;
         if (!name.equals(that.name)) return false;
         if (!className.equals(that.className)) return false;
-        return HotSwapper.instance().isMd5compare()
-                ? Arrays.equals(md5, that.md5) : lastModifyTime == that.lastModifyTime;
+        return Arrays.equals(md5, that.md5);
     }
 
     @Override
@@ -145,8 +129,7 @@ public final class HotResource {
         int result = path.hashCode();
         result = 31 * result + name.hashCode();
         result = 31 * result + className.hashCode();
-        result = 31 * result + (HotSwapper.instance().isMd5compare()
-                ? Arrays.hashCode(md5) : (int) (lastModifyTime ^ (lastModifyTime >>> 32)));
+        result = 31 * result + Arrays.hashCode(md5);
         return result;
     }
 
@@ -156,7 +139,6 @@ public final class HotResource {
                 "path='" + path + '\'' +
                 ", name='" + name + '\'' +
                 ", className='" + className + '\'' +
-                ", lastModifyTime=" + lastModifyTime +
                 ", lastSwapTime=" + lastSwapTime +
                 '}';
     }

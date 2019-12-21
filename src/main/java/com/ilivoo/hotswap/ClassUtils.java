@@ -11,11 +11,12 @@ class ClassUtils {
     public static List<Class<?>> forClass(String name, ClassLoader loader) throws ClassNotFoundException {
         ClassLoader clToUse = loader;
         if (clToUse == null) {
-            clToUse = getDefaultClassLoader();
+            //there has no need to guess which classloader will use
+            //clToUse = getDefaultClassLoader();
         }
         Class<?> loadClass = null;
         try {
-            loadClass = (clToUse != null ? clToUse.loadClass(name) : Class.forName(name));
+            loadClass = clToUse != null ? clToUse.loadClass(name) : null;
         } catch (ClassNotFoundException ex) {
             //class not found, may be loader is not correct
         }
@@ -24,8 +25,8 @@ class ClassUtils {
             resultList.add(loadClass);
         }
         // for instrumentation
-        if (loadClass == null && InstrumentationSupport.supportInstrument()) {
-            Class[] allLoadedClasses = InstrumentationSupport.instance().getAllLoadedClasses();
+        if (loadClass == null && Instrumentation.supportInstrument()) {
+            Class[] allLoadedClasses = Instrumentation.instance().getAllLoadedClasses();
             for (Class clazz : allLoadedClasses) {
                 if (clazz.getName().equals(name)) {
                     resultList.add(clazz);

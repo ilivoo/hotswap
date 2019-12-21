@@ -1,8 +1,5 @@
 package com.ilivoo.hotswap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -17,36 +14,17 @@ import java.util.Map;
 import java.util.Set;
 
 public class HotSwapper {
-
-    private static final Logger LOG = LoggerFactory.getLogger(HotSwapper.class);
-
     //property const
     private static final String PERIOD = "period";
-    private static final String KEEP_TIME = "keepTime";
     private static final String RELOAD_DIR = "reloadDirs";
     private static final String DEVELOP = "develop";
-    private static final String RECURSIVE = "recursive";
-    private static final String MD5_COMPARE = "md5Compare";
 
     private static final HotSwapper INSTANCE = new HotSwapper();
     //reload path
     private Set<String> reloadPathSet = new HashSet<String>();
     //hot swap period, default 1 minute
     private volatile long period = Long.getLong(HotSwapInfo.property(PERIOD), 60 * 000l);
-    //class keep time after hot swap, default 24 hour
-    private volatile long keepTime = Long.getLong(HotSwapInfo.property(KEEP_TIME), 24 * 60 * 60 * 1000l);
-
-    /**
-     * use to control hot swap, for online system just use default
-     * if use to develop, just set recursive and md5compare are true, and addDelete and relyOn are false
-     */
-    //reload path recursive dir
-    private volatile boolean recursive;
-    //use md5 for test last change
-    private volatile boolean md5compare;
-    //for develop
     private volatile boolean develop;
-
     private volatile boolean running = false;
 
     private Thread swapper;
@@ -56,11 +34,7 @@ public class HotSwapper {
     private Set<HotResource> reloadedResources = new HashSet<HotResource>();
 
     private HotSwapper() {
-        setRecursive(getBoolean(HotSwapInfo.property(RECURSIVE), false));
-        setMd5compare(getBoolean(HotSwapInfo.property(MD5_COMPARE), false));
-
         setDevelop(getBoolean(HotSwapInfo.property(DEVELOP), false));
-        LOG.info("hot swap create finish, [{}]", this);
     }
 
     public static HotSwapper instance() {
@@ -95,35 +69,26 @@ public class HotSwapper {
         if (argMap.containsKey(PERIOD)) {
             setPeriod(Long.valueOf(argMap.get(PERIOD)));
         }
-        if (argMap.containsKey(KEEP_TIME)) {
-            setKeepTime(Long.valueOf(argMap.get(KEEP_TIME)));
-        }
-        if (argMap.containsKey(MD5_COMPARE)) {
-            setMd5compare(Boolean.valueOf(argMap.get(MD5_COMPARE)));
-        }
-        if (argMap.containsKey(RECURSIVE)) {
-            setRecursive(Boolean.valueOf(argMap.get(RECURSIVE)));
-        }
         if (argMap.containsKey(DEVELOP)) {
             setDevelop(Boolean.valueOf(argMap.get(DEVELOP)));
         }
         if (argMap.containsKey(RELOAD_DIR)) {
             String[] dirArray = argMap.get(RELOAD_DIR).split(":");
             for (String dir : dirArray) {
-                addReloadPath(dir, recursive);
+                addReloadPath(dir);
             }
         }
-        LOG.info("hot swap parse finish, [{}]", this);
+        System.out.println(String.format("hot swap parse finish, %s", this));
         return this;
     }
 
-    public void addReloadPath(String path, boolean recursive) {
-        LOG.info("add reload path begin [{}], {}", path, reloadPathSet);
+    public void addReloadPath(String path) {
+        System.out.println(String.format("add reload path begin [%s], %s", path, reloadPathSet));
         File pathDir = new File(path);
         if (!pathDir.exists() || !pathDir.isDirectory()) {
             throw new IllegalArgumentException(String.format("%s is not exist or not a directory !", path));
         }
-        String canonicalPath = null;
+        String canonicalPath;
         try {
             canonicalPath = pathDir.getCanonicalPath();
         } catch (IOException e) {
@@ -131,24 +96,22 @@ public class HotSwapper {
         }
         synchronized (this) {
             reloadPathSet.add(canonicalPath);
-            if (recursive) {
+            if (develop) {
                 List<String> childrenDirs = IOUtils.walkDirRecursively(pathDir, canonicalPath);
                 for (String dir : childrenDirs) {
                     reloadPathSet.add(dir);
                 }
-            }
-            if (develop) {
                 List<HotResource> hotResourceList = listHotResource(reloadPathSet, System.currentTimeMillis());
                 reloadedResources.addAll(hotResourceList);
             } else {
-                IOUtils.deleteRecursively(pathDir, false, !recursive);
+                IOUtils.deleteRecursively(pathDir, false, !develop);
             }
         }
-        LOG.info("add reload path finish [{}], {}", path, reloadPathSet);
+        System.out.println(String.format("add reload path finish [%s], %s", path, reloadPathSet));
     }
 
     public synchronized void removeReloadPath(String path, boolean recursive) {
-        LOG.info("remove reload path finish [{}], {}", path, reloadPathSet);
+        System.out.println(String.format("remove reload path finish [%s], %s", path, reloadPathSet));
         reloadPathSet.remove(path);
         if (!recursive) {
             return;
@@ -158,7 +121,7 @@ public class HotSwapper {
                 reloadPathSet.remove(reloadPath);
             }
         }
-        LOG.info("remove reload path finish [{}], {}", path, reloadPathSet);
+        System.out.println(String.format("remove reload path finish [%s], %s", path, reloadPathSet));
     }
 
     public synchronized void start() {
@@ -169,7 +132,7 @@ public class HotSwapper {
         swapper = new SwapThread(getClass().getSimpleName());
         swapper.setDaemon(true);
         swapper.start();
-        LOG.info("hot swap started, [{}]", this);
+        System.out.println(String.format("hot swap started, [%s]", this));
     }
 
     public synchronized void shutdown() {
@@ -179,7 +142,7 @@ public class HotSwapper {
         reloadPathSet.clear();
         running = false;
         swapper.interrupt();
-        LOG.info("hot swap shutdown, [{}]", this);
+        System.out.println(String.format("hot swap shutdown, [%s]", this));
     }
 
     private List<HotResource> listHotResource(Collection<String> paths, long lastSwapTime) {
@@ -189,17 +152,15 @@ public class HotSwapper {
             String[] classFileArray = null;
             try {
                 classFileArray = file.list(new FilenameFilter() {
-                    @Override
                     public boolean accept(File dir, String name) {
                         return new File(dir, name).isFile() && name.endsWith(".class");
                     }
                 });
             } catch (Throwable throwable) {
                 // nothing to do
-                LOG.warn("list file error, reload path [{}]", reloadPath);
+                System.err.println(String.format("list file error, reload path [%s]", reloadPath));
             }
             if (classFileArray == null) {
-                LOG.debug("reload path empty [{}]", reloadPath);
                 continue;
             }
             for (String classFile : classFileArray) {
@@ -207,7 +168,7 @@ public class HotSwapper {
                 try {
                     hotResource = new HotResource(reloadPath, classFile);
                 } catch (Exception e) {
-                    LOG.error("resolve error, reload path [{}], file [{}]", reloadPath, classFile);
+                    System.err.println(String.format("resolve error, reload path [%s], file [%s]", reloadPath, classFile));
                     hotResource.deleteResource();
                     continue;
                 }
@@ -225,15 +186,6 @@ public class HotSwapper {
 
     private void hotSwap(long currentTime) throws Exception {
         List<HotResource> hotResourceList = listHotResource(reloadPathSet, 0);
-        //clean expire file
-        for (Iterator<HotResource> iterator = reloadedResources.iterator(); iterator.hasNext(); ) {
-            HotResource hotResource = iterator.next();
-            if (hotResource.getLastSwapTime() + keepTime <= currentTime) {
-                LOG.info("expire delete reload file [{}]", hotResource);
-                hotResource.deleteResource();
-                iterator.remove();
-            }
-        }
         //hot swap
         List<ClassDefinition> cdList = new ArrayList<ClassDefinition>();
         for (Iterator<HotResource> iterator = hotResourceList.iterator(); iterator.hasNext(); ) {
@@ -242,47 +194,60 @@ public class HotSwapper {
             try {
                 loadClassList = ClassUtils.forClass(hotResource.getClassName(), null);
             } catch (ClassNotFoundException e) {
+                if (!develop) {
+                    System.err.println("can not find need loaded class " + hotResource.getClassName());
+                }
             }
             if (loadClassList == null || (loadClassList != null && loadClassList.size() <= 0)) {
-                LOG.warn("can not find file [{}], class [{}]", hotResource, hotResource.getClassName());
+                System.err.println(String.format("can not find file [%s], class [%s]", hotResource, hotResource.getClassName()));
                 iterator.remove();
                 continue;
             }
-            byte[] classBytes = null;
+            byte[] classBytes;
             try {
                 classBytes = hotResource.getBytes();
             } catch (IOException e) {
-                LOG.error("error to get [{}] bytes", hotResource.getPath());
+                System.err.println(String.format("error to get [%s] bytes", hotResource.getPath()));
                 hotResource.deleteResource();
                 iterator.remove();
                 continue;
             }
             for (Class<?> clazz : loadClassList) {
-                LOG.info("add redefine class loader [{}], class [{}]", clazz.getClassLoader(), clazz.getName());
+                System.out.println(String.format("add redefine class loader [%s], class [%s]", clazz.getClassLoader(), clazz.getName()));
                 cdList.add(new ClassDefinition(clazz, classBytes.clone()));
             }
             hotResource.setLastSwapTime(currentTime);
+            if (!develop) {
+                hotResource.deleteResource();
+            }
             reloadedResources.add(hotResource);
         }
         if (cdList.size() <= 0) {
             return;
         }
+        System.out.println("start transform class");
         if (develop) {
             for (ClassDefinition classDefinition : cdList) {
                 try {
-                    InstrumentationSupport.instance().redefineClasses(classDefinition);
-                    LOG.info("redefine success, class loader [{}], class [{}]",
+                    Instrumentation.instance().redefineClasses(classDefinition);
+                    System.out.println(String.format("redefine success, class loader [%s], class [%s]",
                             classDefinition.getDefinitionClass().getClassLoader(),
-                            classDefinition.getDefinitionClass());
+                            classDefinition.getDefinitionClass()));
                 } catch (Exception ex) {
                     //not relyOn on
-                    LOG.error("redefine error, class loader [{}], class [{}]",
+                    System.err.println(String.format("redefine error, class loader [%s], class [%s]",
                             classDefinition.getDefinitionClass().getClassLoader(),
-                            classDefinition.getDefinitionClass());
+                            classDefinition.getDefinitionClass()));
                 }
             }
         } else {
-            InstrumentationSupport.instance().redefineClasses(cdList.toArray(new ClassDefinition[0]));
+            Instrumentation.instance().redefineClasses(cdList.toArray(new ClassDefinition[0]));
+            for (ClassDefinition classDefinition : cdList) {
+                System.out.println(String.format("redefine success, class loader [%s], class [%s]",
+                        classDefinition.getDefinitionClass().getClassLoader(),
+                        classDefinition.getDefinitionClass()));
+            }
+            reloadedResources.clear();
         }
     }
 
@@ -294,40 +259,12 @@ public class HotSwapper {
         this.period = period;
     }
 
-    public long getKeepTime() {
-        return keepTime;
-    }
-
-    public void setKeepTime(long keepTime) {
-        this.keepTime = keepTime;
-    }
-
-    public boolean isRecursive() {
-        return recursive;
-    }
-
-    void setRecursive(boolean recursive) {
-        this.recursive = recursive;
-    }
-
-    public boolean isMd5compare() {
-        return md5compare;
-    }
-
-    void setMd5compare(boolean md5compare) {
-        this.md5compare = md5compare;
-    }
-
     public boolean isDevelop() {
         return develop;
     }
 
     void setDevelop(boolean develop) {
         this.develop = develop;
-        if (develop) {
-            setRecursive(true);
-            setMd5compare(true);
-        }
     }
 
     public boolean isRunning() {
@@ -338,9 +275,6 @@ public class HotSwapper {
     public String toString() {
         return "HotSwapper{" +
                 "period=" + period +
-                ", keepTime=" + keepTime +
-                ", recursive=" + recursive +
-                ", md5compare=" + md5compare +
                 ", develop=" + develop +
                 ", running=" + running +
                 ", lastSwapTime=" + lastSwapTime +
@@ -363,14 +297,12 @@ public class HotSwapper {
                         if (currentTime > nextSwapTime) {
                             lastSwapTime = currentTime;
                             nextSwapTime = lastSwapTime + period;
-                            LOG.debug("ready to hot swap [{}]", HotSwapper.this);
                             hotSwap(currentTime);
                         } else {
                             HotSwapper.this.wait(period);
                         }
                     } catch (Throwable ex) {
-                        // nothing to do
-                        LOG.warn("hot swap round error", ex);
+                        ex.printStackTrace();
                     }
                 }
             }

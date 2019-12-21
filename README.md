@@ -14,11 +14,8 @@ hotswap目前已经在线上部署使用，但并未进行非常全面的测试�
 
 ```
 ilivoo.hotSwap.period			热交换后台线程运行周期
-ilivoo.hotSwap.keepTime			热更新文件，更新后保留的时间
 ilivoo.hotSwap.reloadDirs		热更新指定的路径
 ilivoo.hotSwap.develop			是否是开发模式
-ilivoo.hotSwap.recursive		热更新路径是否递归查找
-ilivoo.hotSwap.md5Compare		class文件对比，默认使用文件的lastmodified时间
 ```
 
 - 本地开发环境
@@ -33,6 +30,12 @@ ilivoo.hotSwap.md5Compare		class文件对比，默认使用文件的lastmodified
   -javaagent:target/hotswap-1.0.jar=reloadDirs=hotdir
   ```
 
+- 线上动态attach到ava进程
+
+  ```
+  java -jar hotswap-1.0.jar pid reloadDirs=hotdir
+  ```
+  
 - 测试工具，用来简单测试hotswap工具的测试类
 
   ```
@@ -43,4 +46,4 @@ ilivoo.hotSwap.md5Compare		class文件对比，默认使用文件的lastmodified
 
 计划在后期版本中加入功能和优化
 
-- hotswap 动态attach到某个java进程
+- hotswap 动态attach到某个java进程, 执行用户指定的jar包

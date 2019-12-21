@@ -1,3 +1,5 @@
 Manifest-Version: 1.0
-Premain-Class: com.ilivoo.hotswap.InstrumentationSupport
+Premain-Class: com.ilivoo.hotswap.Instrumentation
+Main-Class: com.ilivoo.hotswap.Instrumentation
+Agent-Class: com.ilivoo.hotswap.Instrumentation
 Can-Redefine-Classes: true

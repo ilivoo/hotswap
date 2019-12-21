@@ -3,6 +3,7 @@ package com.ilivoo.hotswap;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FilenameFilter;
 import java.io.Flushable;
 import java.io.IOException;
@@ -29,6 +30,27 @@ class IOUtils {
         }
     }
 
+    public static List<String> walkFileRecursively(File root, final String suffix) {
+        final List<String> result = new ArrayList<String>();
+        if (root != null && root.exists()) {
+            if (root.isDirectory()) {
+                root.listFiles(new FileFilter() {
+                    public boolean accept(File file) {
+                        if (file.isDirectory()) {
+                            result.addAll(walkFileRecursively(file, suffix));
+                        } else if (file.getName().endsWith(suffix)) {
+                            result.add(file.getPath());
+                        }
+                        return false;
+                    }
+                });
+            } else if (root.getName().endsWith(suffix)) {
+                result.add(root.getPath());
+            }
+        }
+        return result;
+    }
+
     public static List<String> walkDirRecursively(File root, String parent) {
         if (parent == null) parent = "";
         List<String> result = new ArrayList<String>();
@@ -36,7 +58,6 @@ class IOUtils {
             if (root.isDirectory()) {
                 final List<String> childrenDirName = new ArrayList<String>();
                 File[] childrenDir = root.listFiles(new FilenameFilter() {
-                    @Override
                     public boolean accept(File dir, String name) {
                         boolean isDirectory = new File(dir, name).isDirectory();
                         if (isDirectory) {
@@ -51,7 +72,6 @@ class IOUtils {
                         String finalParent = parent.length() == 0 ? newParent.substring(1) : newParent;
                         result.add(finalParent);
                         result.addAll(walkDirRecursively(childrenDir[i], finalParent));
-
                     }
                 }
             }

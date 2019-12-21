@@ -1,7 +1,5 @@
 package com.ilivoo.hotswap;
 
-import org.slf4j.LoggerFactory;
-
 import java.util.Scanner;
 
 public class TestTool {
@@ -18,7 +16,6 @@ public class TestTool {
         HotSwapper.instance().setDevelop(true);
         HotSwapper.instance().start();
         new Thread(new Runnable() {
-            @Override
             public void run() {
                 while (true) {
                     try {
@@ -38,14 +35,12 @@ public class TestTool {
 
     public static void command(String line) {
         try {
-            LoggerFactory.getLogger(HotSwapper.class).info("Log line [{}]", line);
+            System.out.println("Log line " + line);
             String[] lineArgs = line.split(" ");
             if (line.startsWith("add")) {//add target/classes
-                HotSwapper.instance().addReloadPath(lineArgs[1], true);
+                HotSwapper.instance().addReloadPath(lineArgs[1]);
             } else if (line.startsWith("period")) {// period 10000
                 HotSwapper.instance().setPeriod(Long.valueOf(lineArgs[1]));
-            } else if (line.startsWith("keepTime")) {
-                HotSwapper.instance().setKeepTime(Long.valueOf(lineArgs[1]));
             } else if (line.startsWith("classPath")){
                 System.out.println("class path" + System.getProperty("java.class.path"));
             }
