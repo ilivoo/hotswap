@@ -78,12 +78,12 @@ public class HotSwapper {
                 addReloadPath(dir);
             }
         }
-        System.out.println(String.format("hot swap parse finish, %s", this));
+        System.out.printf("hot swap parse finish, %s\n", this);
         return this;
     }
 
     public void addReloadPath(String path) {
-        System.out.println(String.format("add reload path begin [%s], %s", path, reloadPathSet));
+        System.out.printf("add reload path begin [%s], %s\n", path, reloadPathSet);
         File pathDir = new File(path);
         if (!pathDir.exists() || !pathDir.isDirectory()) {
             throw new IllegalArgumentException(String.format("%s is not exist or not a directory !", path));
@@ -107,11 +107,11 @@ public class HotSwapper {
                 IOUtils.deleteRecursively(pathDir, false, !develop);
             }
         }
-        System.out.println(String.format("add reload path finish [%s], %s", path, reloadPathSet));
+        System.out.printf("add reload path finish [%s], %s\n", path, reloadPathSet);
     }
 
     public synchronized void removeReloadPath(String path, boolean recursive) {
-        System.out.println(String.format("remove reload path finish [%s], %s", path, reloadPathSet));
+        System.out.printf("remove reload path finish [%s], %s\n", path, reloadPathSet);
         reloadPathSet.remove(path);
         if (!recursive) {
             return;
@@ -121,7 +121,7 @@ public class HotSwapper {
                 reloadPathSet.remove(reloadPath);
             }
         }
-        System.out.println(String.format("remove reload path finish [%s], %s", path, reloadPathSet));
+        System.out.printf("remove reload path finish [%s], %s\n", path, reloadPathSet);
     }
 
     public synchronized void start() {
@@ -132,7 +132,7 @@ public class HotSwapper {
         swapper = new SwapThread(getClass().getSimpleName());
         swapper.setDaemon(true);
         swapper.start();
-        System.out.println(String.format("hot swap started, [%s]", this));
+        System.out.printf("hot swap started, [%s]\n", this);
     }
 
     public synchronized void shutdown() {
@@ -142,7 +142,7 @@ public class HotSwapper {
         reloadPathSet.clear();
         running = false;
         swapper.interrupt();
-        System.out.println(String.format("hot swap shutdown, [%s]", this));
+        System.out.printf("hot swap shutdown, [%s]\n", this);
     }
 
     private List<HotResource> listHotResource(Collection<String> paths, long lastSwapTime) {
@@ -158,7 +158,7 @@ public class HotSwapper {
                 });
             } catch (Throwable throwable) {
                 // nothing to do
-                System.err.println(String.format("list file error, reload path [%s]", reloadPath));
+                System.err.printf("list file error, reload path [%s]\n", reloadPath);
             }
             if (classFileArray == null) {
                 continue;
@@ -168,7 +168,7 @@ public class HotSwapper {
                 try {
                     hotResource = new HotResource(reloadPath, classFile);
                 } catch (Exception e) {
-                    System.err.println(String.format("resolve error, reload path [%s], file [%s]", reloadPath, classFile));
+                    System.err.printf("resolve error, reload path [%s], file [%s]\n", reloadPath, classFile);
                     hotResource.deleteResource();
                     continue;
                 }
@@ -199,7 +199,7 @@ public class HotSwapper {
                 }
             }
             if (loadClassList == null || (loadClassList != null && loadClassList.size() <= 0)) {
-                System.err.println(String.format("can not find file [%s], class [%s]", hotResource, hotResource.getClassName()));
+                System.err.printf("can not find file [%s], class [%s]\n", hotResource, hotResource.getClassName());
                 iterator.remove();
                 continue;
             }
@@ -207,13 +207,13 @@ public class HotSwapper {
             try {
                 classBytes = hotResource.getBytes();
             } catch (IOException e) {
-                System.err.println(String.format("error to get [%s] bytes", hotResource.getPath()));
+                System.err.printf("error to get [%s] bytes\n", hotResource.getPath());
                 hotResource.deleteResource();
                 iterator.remove();
                 continue;
             }
             for (Class<?> clazz : loadClassList) {
-                System.out.println(String.format("add redefine class loader [%s], class [%s]", clazz.getClassLoader(), clazz.getName()));
+                System.out.printf("add redefine class loader [%s], class [%s]\n", clazz.getClassLoader(), clazz.getName());
                 cdList.add(new ClassDefinition(clazz, classBytes.clone()));
             }
             hotResource.setLastSwapTime(currentTime);
@@ -230,22 +230,22 @@ public class HotSwapper {
             for (ClassDefinition classDefinition : cdList) {
                 try {
                     Instrumentation.instance().redefineClasses(classDefinition);
-                    System.out.println(String.format("redefine success, class loader [%s], class [%s]",
+                    System.out.printf("redefine success, class loader [%s], class [%s]\n",
                             classDefinition.getDefinitionClass().getClassLoader(),
-                            classDefinition.getDefinitionClass()));
+                            classDefinition.getDefinitionClass());
                 } catch (Exception ex) {
                     //not relyOn on
-                    System.err.println(String.format("redefine error, class loader [%s], class [%s]",
+                    System.err.printf("redefine error, class loader [%s], class [%s]\n",
                             classDefinition.getDefinitionClass().getClassLoader(),
-                            classDefinition.getDefinitionClass()));
+                            classDefinition.getDefinitionClass());
                 }
             }
         } else {
             Instrumentation.instance().redefineClasses(cdList.toArray(new ClassDefinition[0]));
             for (ClassDefinition classDefinition : cdList) {
-                System.out.println(String.format("redefine success, class loader [%s], class [%s]",
+                System.out.printf("redefine success, class loader [%s], class [%s]\n",
                         classDefinition.getDefinitionClass().getClassLoader(),
-                        classDefinition.getDefinitionClass()));
+                        classDefinition.getDefinitionClass());
             }
             reloadedResources.clear();
         }
