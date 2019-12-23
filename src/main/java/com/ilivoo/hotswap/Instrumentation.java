@@ -41,6 +41,7 @@ public class Instrumentation {
             throwable.printStackTrace();
             usage();
         }
+        System.out.printf("process %s attach success\n", args[0]);
     }
 
     public static File getAgentJar() throws Exception {
@@ -60,6 +61,7 @@ public class Instrumentation {
             List<String> entryList = new ArrayList<String>();
             List<String> classList = IOUtils.walkFileRecursively(new File(classPath), ".class");
             for (String clazz : classList) {
+                clazz = StringUtils.cleanPath(clazz);
                 entryList.add(clazz.replaceFirst(classPath + "/", ""));
             }
             result = File.createTempFile("hotSwapAgent", ".jar");
@@ -109,9 +111,16 @@ public class Instrumentation {
         try {
             vmClass = ClassLoader.getSystemClassLoader().loadClass(vmName);
         } catch (Exception var16) {
-            String toolsPath = System.getProperty("java.home")
-                    .replace('\\', '/') + "/../lib/tools.jar";
-            URL url = new File(toolsPath).toURI().toURL();
+            String javaHome = StringUtils.cleanPath(System.getProperty("java.home"));
+            File toolsFile = new File(javaHome + "/../lib/tools.jar");
+            if (!toolsFile.exists() || !toolsFile.isFile()) {
+                toolsFile = new File(javaHome + "/lib/tools.jar");
+            }
+            if (!toolsFile.exists() || !toolsFile.isFile()) {
+                System.out.printf("no tools.jar find in [%s].\n", StringUtils.cleanPath(toolsFile.getPath()));
+                System.exit(0);
+            }
+            URL url = toolsFile.toURI().toURL();
             ClassLoader classLoader = URLClassLoader.newInstance(new URL[]{url});
             vmClass = classLoader.loadClass(vmName);
         }

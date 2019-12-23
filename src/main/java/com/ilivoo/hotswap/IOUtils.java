@@ -39,13 +39,13 @@ class IOUtils {
                         if (file.isDirectory()) {
                             result.addAll(walkFileRecursively(file, suffix));
                         } else if (file.getName().endsWith(suffix)) {
-                            result.add(file.getPath());
+                            result.add(file.toURI().getPath());
                         }
                         return false;
                     }
                 });
             } else if (root.getName().endsWith(suffix)) {
-                result.add(root.getPath());
+                result.add(root.toURI().getPath());
             }
         }
         return result;
